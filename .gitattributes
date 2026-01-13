@@ -1,0 +1,15 @@
+# GitHub Linguist configuration
+# https://github.com/github-linguist/linguist
+
+# Documentation - won't dominate the language bar
+*.md linguist-documentation
+
+# Example code should be counted as their languages
+Cog/examples/*.go linguist-detectable
+Grit/examples/*.rs linguist-detectable
+Terse/examples/*.ts linguist-detectable
+
+# Config files - don't count in language stats
+*.yml linguist-vendored
+*.toml linguist-vendored
+*.json linguist-vendored

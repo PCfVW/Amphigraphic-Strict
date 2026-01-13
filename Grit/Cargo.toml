@@ -1,0 +1,41 @@
+# Grit: Strict Rust lints configuration
+# Add this [lints] section to your project's Cargo.toml
+
+[lints.rust]
+# Safety
+unsafe_code = "forbid"              # Or "deny" with isolated modules
+# Explicitness
+elided_lifetimes_in_paths = "deny"  # Rule 1: explicit lifetimes
+
+[lints.clippy]
+# Rule 3: No panics in library code
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"           # Use .get() instead
+
+# Rule 7: Exhaustive matching
+wildcard_enum_match_arm = "deny"
+
+# Rule 2: Explicit conversions
+as_conversions = "warn"             # Prefer From/Into
+
+# Rule 9: Prefer iterators over loops
+explicit_iter_loop = "warn"         # Use .iter() explicitly
+manual_filter_map = "warn"          # Use .filter_map() instead
+manual_find_map = "warn"            # Use .find_map() instead
+needless_range_loop = "warn"        # Use direct iteration
+
+# Additional strictness
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+
+# Specific pedantic lints to enforce
+missing_docs_in_private_items = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+
+# Allow some pedantic lints that are too noisy
+module_name_repetitions = "allow"
+too_many_lines = "allow"
+must_use_candidate = "allow"

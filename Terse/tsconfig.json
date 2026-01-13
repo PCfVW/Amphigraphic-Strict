@@ -1,0 +1,65 @@
+{
+  "compilerOptions": {
+    // === STRICT BASE ===
+    "strict": true,
+
+    // === TERSE ADDITIONS ===
+    // Rule 3: Safe index access
+    "noUncheckedIndexedAccess": true,
+
+    // Explicit optional property handling
+    "exactOptionalPropertyTypes": true,
+
+    // Require bracket notation for index signatures
+    "noPropertyAccessFromIndexSignature": true,
+
+    // === PREVENT ESCAPE HATCHES ===
+    // Rule 1: No implicit any
+    "noImplicitAny": true,
+
+    // Force explicit returns
+    "noImplicitReturns": true,
+
+    // Require override keyword
+    "noImplicitOverride": true,
+
+    // === EXTRA SAFETY ===
+    // Exhaustive switch statements
+    "noFallthroughCasesInSwitch": true,
+
+    // Consistent file casing
+    "forceConsistentCasingInFileNames": true,
+
+    // Modern module syntax
+    "verbatimModuleSyntax": true,
+
+    // === RECOMMENDED SETTINGS ===
+    // Modern JavaScript output
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    // Enable all strict null checks
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+
+    // Additional checks
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+
+    // Declaration files
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // Output configuration (adjust per project)
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

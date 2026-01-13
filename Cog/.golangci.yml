@@ -1,0 +1,64 @@
+# Cog: Strict Go linter configuration
+# Copy this file to your project root and run: golangci-lint run ./...
+
+linters:
+  enable:
+    # Core linters
+    - errcheck          # Rule 2: no unchecked errors
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+    # Cog-specific
+    - nakedret          # Rule 3: no bare returns
+    - nilerr            # Rule 4: nil error handling
+    - bodyclose         # Ensure HTTP response bodies are closed
+    - exhaustive        # Exhaustive enum switches
+    - noctx             # HTTP requests without context
+    - prealloc          # Slice preallocation suggestions
+    - unconvert         # Unnecessary type conversions
+    - unparam           # Unused function parameters
+    - wastedassign      # Wasted assignments
+
+linters-settings:
+  nakedret:
+    max-func-lines: 0   # Rule 3: ban ALL naked returns
+
+  govet:
+    enable:
+      - loopclosure     # Rule 5: goroutine capture (Go <1.22)
+      - shadow          # Variable shadowing
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true   # Rule 2: catch _ = err patterns without comment
+
+  exhaustive:
+    default-signifies-exhaustive: false  # Force explicit handling
+
+  staticcheck:
+    checks:
+      - all
+      - -SA1019         # Allow deprecated if necessary (configure per-project)
+
+issues:
+  # No exclusions - Cog is strict
+  exclude-use-default: false
+
+  exclude-rules:
+    # Allow some flexibility in tests
+    - path: _test\.go
+      linters:
+        - errcheck      # Tests may ignore errors for brevity
+
+# Severity configuration
+severity:
+  default-severity: error
+  rules:
+    - linters:
+        - errcheck
+        - nakedret
+        - nilerr
+      severity: error
