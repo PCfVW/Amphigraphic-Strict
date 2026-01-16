@@ -56,12 +56,15 @@ func MightFail(fail bool) error {
 }
 
 // --- MISTAKE 5: Goroutine Loop Variable Capture ---
-// Classic AI mistake - closure captures variable by reference
+// Classic AI mistake - closure captures loop variable by reference.
+// Note: Go 1.22+ changed loop variable semantics, but this pattern remains
+// problematic for (1) pre-1.22 codebases, (2) AI models trained on older code,
+// and (3) code clarity.
 
 func ProcessItems(items []string) {
 	for _, item := range items {
 		go func() {
-			fmt.Println(item) // BUG: All goroutines print the last item!
+			fmt.Println(item) // BUG (pre-Go 1.22): All goroutines print the last item!
 		}()
 	}
 }

@@ -4,6 +4,8 @@
 
 Rust scores 84/100 for AI-assisted development, with its main weakness being complexity (★★★☆☆). **Grit** is a restricted subset that makes implicit behaviors explicit, eliminating the patterns where AI stumbles.
 
+> **Empirical basis:** Grit's rules are *inferred* from general LLM error research rather than Rust-specific studies. The type erasure ban is supported by research showing 33.6% of LLM failures are type errors [TyFlow, 2025]. The explicit lifetime rules target the complexity issues identified in Dou et al. [2024]. No direct study has yet measured AI accuracy improvements for Rust-specific constraints—this represents an open research opportunity.
+
 ## Quick Start
 
 ```bash
@@ -32,6 +34,16 @@ cargo clippy -- -D warnings -D clippy::pedantic
 | Ad-hoc error types | Use thiserror for libraries | AI generates consistent errors |
 | Multiple iteration styles | Prefer iterator chains | AI uses idiomatic patterns |
 | Mixed async runtimes | Standardize on tokio | AI uses consistent async code |
+
+**Bug Pattern Prevention** (based on Tambon et al., 2025):
+
+| Grit Rule | Prevents Bug Pattern |
+|-----------|---------------------|
+| No type erasure | "Wrong Input Type," "Hallucinated Object" |
+| No unwrap/expect | "Missing Corner Case" |
+| Explicit lifetimes | "Misinterpretations," "Wrong Attribute" |
+| Exhaustive matching | "Missing Corner Case" |
+| Explicit conversions | "Wrong Input Type" |
 
 ## The Rules
 
@@ -172,9 +184,9 @@ async fn main() -> Result<(), Error> {
 | Simplicity | 3/5 | 4/5 | "One way" rules reduce variation |
 | Error Handling | 5/5 | 5/5 | Same (already excellent) |
 | Ecosystem | 3/5 | 3/5 | Same |
-| **Total** | **84/100** | **92/100** | **+8 points** |
+| **Total** | **84/100** | **92/100** | **+8 points** *(theoretical, unvalidated)* |
 
-*Scores are proposed estimates based on documented failure modes.*
+*Scores are theoretical projections based on documented failure modes and general LLM research. They have **not been empirically validated** for Rust specifically. See the [full paper](../Amphigraphic_Language_Guide.md) for methodology and research references.*
 
 ## Files in This Directory
 

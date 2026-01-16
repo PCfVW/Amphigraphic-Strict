@@ -114,15 +114,17 @@ AI frequently generates race conditions and incorrect concurrent patterns.
 
 ### Go: Loop Variable Capture
 
+> **Note:** Go 1.22+ changed loop variable semantics so each iteration gets a fresh variable. However, this pattern remains relevant for (1) pre-1.22 codebases, (2) AI models trained on older Go code, and (3) explicit code clarity.
+
 ```go
 // AI-generated code
 for _, item := range items {
     go func() {
-        process(item)  // BUG: All goroutines process last item
+        process(item)  // BUG (pre-Go 1.22): All goroutines process last item
     }()
 }
 
-// Correct version (Cog)
+// Correct version (Cog) - works on all Go versions
 for _, item := range items {
     go func(it Item) {
         process(it)
@@ -130,7 +132,7 @@ for _, item := range items {
 }
 ```
 
-**Prevention:** Linter rule for `loopclosure`. Prompt rule for goroutine arguments.
+**Prevention:** Linter rule for `loopclosure` (Go <1.22). Prompt rule for goroutine arguments (all versions, for clarity).
 
 ### Kotlin: GlobalScope Leaks
 

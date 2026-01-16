@@ -10,13 +10,17 @@ Ready-to-use linter configs and AI prompts for **Cog** (Go), **Grit** (Rust), an
 
 AI coding assistants predict "most likely" code, but many language features allow multiple valid interpretations. The strict subsets improve AI accuracy by reducing ambiguity:
 
-| Subset | Base Language | Base Score | Strict Score | Improvement |
-|--------|---------------|------------|--------------|-------------|
-| **Cog** | Go | 84/100 | 96/100 | +12 points |
-| **Terse** | TypeScript | 76/100 | 92/100 | +16 points |
-| **Grit** | Rust | 84/100 | 92/100 | +8 points |
+| Subset | Base Language | Base Score | Strict Score | Improvement | Validation Status |
+|--------|---------------|------------|--------------|-------------|-------------------|
+| **Terse** | TypeScript | 76/100 | 92/100 | +16 points | **Empirically validated** |
+| **Cog** | Go | 84/100 | 96/100 | +12 points | Theoretical (inferred) |
+| **Grit** | Rust | 84/100 | 92/100 | +8 points | Theoretical (inferred) |
 
-*Note: Scores are proposed estimates based on documented failure modes, not empirically measured values. See the [full paper](Amphigraphic_Language_Guide.md) for methodology.*
+**Validation status explained:**
+- **Terse (TypeScript):** Direct empirical support from Mündler et al. [PLDI 2025], which demonstrated 74.8%/56.0% compilation error reduction with TypeScript type constraints.
+- **Cog (Go) & Grit (Rust):** Rules are inferred from general LLM error research (e.g., 33.6% of failures are type errors). No language-specific validation studies exist yet—this is an open research opportunity.
+
+*See the [full paper](Amphigraphic_Language_Guide.md) for detailed methodology and all 15 research references.*
 
 ## Quick Start
 

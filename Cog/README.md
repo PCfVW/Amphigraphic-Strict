@@ -4,6 +4,8 @@
 
 Go scores 84/100 for AI-assisted development, but its remaining weaknesses cause predictable AI failures. **Cog** is a restricted subset of Go that eliminates these failure modes through enforceable rules.
 
+> **Empirical basis:** Cog's rules are *inferred* from general LLM error research rather than Go-specific studies. The type erasure ban is supported by research showing 33.6% of LLM failures are type errors [TyFlow, 2025]. No direct study has yet measured AI accuracy improvements for Go-specific constraints—this represents an open research opportunity.
+
 ## Quick Start
 
 ```bash
@@ -26,6 +28,15 @@ golangci-lint run ./...
 | Named return confusion | Named returns banned | AI generates explicit return statements |
 | Bare returns | Banned (must return explicit values) | AI can't generate ambiguous returns |
 | Unstructured errors | Must use error wrapping with context | AI generates traceable errors |
+
+**Bug Pattern Prevention** (based on Tambon et al., 2025):
+
+| Cog Rule | Prevents Bug Pattern |
+|----------|---------------------|
+| No type erasure | "Wrong Input Type," "Hallucinated Object" |
+| Explicit error handling | "Missing Corner Case" |
+| No named returns | "Misinterpretations" |
+| Interface nil safety | "Wrong Attribute" |
 
 ## The Rules
 
@@ -82,15 +93,18 @@ func getError() error {
 ```
 
 ### Rule 5: Safe Goroutine Capture
+
+> **Note:** Go 1.22+ changed loop variable semantics so each iteration gets a fresh variable. This rule remains valuable for (1) codebases not yet on Go 1.22+, (2) AI models trained on pre-1.22 code, and (3) explicit clarity about capture intent.
+
 ```go
-// BANNED in Cog
+// BANNED in Cog (especially pre-Go 1.22)
 for _, item := range items {
     go func() {
-        process(item)  // Captures by reference
+        process(item)  // Captures loop variable by reference (pre-1.22 bug)
     }()
 }
 
-// Cog: Pass as argument
+// Cog: Pass as argument (works on all Go versions, explicit intent)
 for _, item := range items {
     go func(it Item) {
         process(it)
@@ -116,9 +130,9 @@ results := make([]Item, 0)  // JSON encodes to []
 | Simplicity | 5/5 | 4/5 | Slight overhead from Result type |
 | Error Handling | 3/5 | 5/5 | Enforced, wrapped, traceable |
 | Ecosystem | 4/5 | 4/5 | Same (it's still Go) |
-| **Total** | **84/100** | **96/100** | **+12 points** |
+| **Total** | **84/100** | **96/100** | **+12 points** *(theoretical, unvalidated)* |
 
-*Scores are proposed estimates based on documented failure modes.*
+*Scores are theoretical projections based on documented failure modes and general LLM research. They have **not been empirically validated** for Go specifically. See the [full paper](../Amphigraphic_Language_Guide.md) for methodology and research references.*
 
 ## Files in This Directory
 
