@@ -1,0 +1,64 @@
+# Stoic: Strict C++ for AI-Assisted Development
+# clang-tidy configuration enforcing Stoic rules
+#
+# Usage:
+#   clang-tidy -p build/ --config-file=.clang-tidy src/*.cpp
+#
+# Requires: clang-tidy 14+ recommended for full check coverage
+#
+# NOTE: Rule 4 (const by default, not constexpr) cannot be enforced by linters.
+# AI over-applies constexpr because it cannot determine compile-time vs runtime
+# context. This requires human code review - question every constexpr usage.
+#
+# NOTE: Rule 5 (document preconditions and UB) and comment markers (MAP_ACCESS,
+# COPY, TYPE_LIMIT, PLATFORM) also require human code review - linters cannot
+# determine semantic intent.
+
+---
+Checks: >
+  -*,
+  cppcoreguidelines-owning-memory,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-macro-usage,
+  modernize-make-unique,
+  modernize-make-shared,
+  modernize-macro-to-enum,
+  modernize-use-using,
+  readability-avoid-const-params-in-decls
+
+WarningsAsErrors: >
+  cppcoreguidelines-owning-memory,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-macro-usage
+
+CheckOptions:
+  # Rule 2: Smart Pointers Only
+  # Flag raw pointers that appear to own memory
+  - key: cppcoreguidelines-owning-memory.LegacyResourceProducers
+    value: '::malloc;::realloc;::calloc;::fopen'
+  - key: cppcoreguidelines-owning-memory.LegacyResourceConsumers
+    value: '::free;::fclose'
+
+  # Rule 3: No Preprocessor Macros
+  # Allow only platform/feature detection macros
+  - key: cppcoreguidelines-macro-usage.AllowedRegexp
+    value: '^(DEBUG|NDEBUG|_WIN32|_MSC_VER|__GNUC__|__clang__|__cplusplus|.*_H_?|.*_HPP_?)$'
+  - key: cppcoreguidelines-macro-usage.CheckCapsOnly
+    value: 'false'
+
+# Additional compiler flags recommended for Stoic:
+#
+# Clang/GCC:
+#   -std=c++20
+#   -Wall -Wextra -Wpedantic
+#   -Wold-style-cast
+#   -Wconversion
+#   -Wshadow
+#   -Wnon-virtual-dtor
+#   -Wundef
+#   -fmodules (Clang only, for Rule 1)
+#
+# MSVC:
+#   /std:c++20
+#   /W4
+#   /experimental:module (for Rule 1)
