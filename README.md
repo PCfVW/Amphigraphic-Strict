@@ -1,6 +1,6 @@
 # Amphigraphic Strict Subsets
 
-Ready-to-use linter configs and AI prompts for **Cog** (Go), **Grit** (Rust), and **Terse** (TypeScript) — strict language subsets designed for AI-assisted development.
+Ready-to-use linter configs and AI prompts for **Cog** (Go), **Gizmo** (Zig), **Grit** (Rust), **Stoic** (C++), and **Terse** (TypeScript) — strict language subsets designed for AI-assisted development.
 
 **What you get:** Linter configs and AI prompts that enforce coding patterns designed to reduce common AI generation errors. The scoring framework helps communicate *why* certain language features cause AI mistakes, but the real value is in the enforceable rules.
 
@@ -14,11 +14,13 @@ AI coding assistants predict "most likely" code, but many language features allo
 |--------|---------------|------------|--------------|-------------|-------------------|
 | **Terse** | TypeScript | 76/100 | 92/100 | +16 points | **Empirically validated** |
 | **Cog** | Go | 84/100 | 96/100 | +12 points | Theoretical (inferred) |
+| **Gizmo** | Zig | 72/100 | 80/100 | +8 points | Theoretical (inferred) |
 | **Grit** | Rust | 84/100 | 92/100 | +8 points | Theoretical (inferred) |
+| **Stoic** | C++ | 56/100 | 64/100 | +8 points | Theoretical (inferred) |
 
 **Validation status explained:**
 - **Terse (TypeScript):** Direct empirical support from Mündler et al. [PLDI 2025], which demonstrated 74.8%/56.0% compilation error reduction with TypeScript type constraints.
-- **Cog (Go) & Grit (Rust):** Rules are inferred from general LLM error research (e.g., 33.6% of failures are type errors). No language-specific validation studies exist yet—this is an open research opportunity.
+- **Cog (Go), Gizmo (Zig), Grit (Rust) & Stoic (C++):** Rules are inferred from general LLM error research (e.g., 33.6% of failures are type errors). No language-specific validation studies exist yet—this is an open research opportunity.
 
 *See the [full paper](Amphigraphic_Language_Guide.md) for detailed methodology and all 15 research references.*
 
@@ -47,6 +49,18 @@ First, clone this repository:
 ```bash
 git clone https://github.com/PCfVW/Amphigraphic-Strict.git
 cd Amphigraphic-Strict
+```
+
+### C++ → Stoic
+```bash
+# Linux/macOS
+cp Stoic/.clang-tidy your-project/
+
+# Windows
+copy Stoic\.clang-tidy your-project\
+
+# Then run clang-tidy
+clang-tidy -p build/ --config-file=.clang-tidy src/*.cpp
 ```
 
 ### Go → Cog
@@ -82,12 +96,26 @@ npm install -D eslint @typescript-eslint/eslint-plugin @typescript-eslint/parser
 npx eslint . --ext .ts,.tsx
 ```
 
+### Zig → Gizmo
+```bash
+# Copy the build.zig.example settings to your project's build.zig
+# (Gizmo uses standard Zig with strict conventions)
+
+# Run tests with all safety checks
+zig build test
+
+# Build with release-safe for production (keeps safety checks)
+zig build -Doptimize=ReleaseSafe
+```
+
 ## AI Prompts
 
 Each subset includes a `prompt.md` with system prompt additions for Claude, Cursor, Copilot, or other AI assistants.
 
 - [Cog/prompt.md](Cog/prompt.md) — Go AI rules
+- [Gizmo/prompt.md](Gizmo/prompt.md) — Zig AI rules
 - [Grit/prompt.md](Grit/prompt.md) — Rust AI rules
+- [Stoic/prompt.md](Stoic/prompt.md) — C++ AI rules
 - [Terse/prompt.md](Terse/prompt.md) — TypeScript AI rules
 
 ## Repository Structure
@@ -106,6 +134,14 @@ Amphigraphic-Strict/
 │       ├── before.go              # Common AI mistakes
 │       └── after.go               # Cog-compliant version
 │
+├── Gizmo/                         # Strict Zig
+│   ├── README.md
+│   ├── build.zig.example          # Example build configuration
+│   ├── prompt.md
+│   └── examples/
+│       ├── before.zig
+│       └── after.zig
+│
 ├── Grit/                          # Strict Rust
 │   ├── README.md
 │   ├── Cargo.toml                 # [lints] section to copy
@@ -114,6 +150,14 @@ Amphigraphic-Strict/
 │   └── examples/
 │       ├── before.rs
 │       └── after.rs
+│
+├── Stoic/                         # Strict C++
+│   ├── README.md
+│   ├── .clang-tidy                # Ready to copy
+│   ├── prompt.md
+│   └── examples/
+│       ├── before.cpp
+│       └── after.cpp
 │
 ├── Terse/                         # Strict TypeScript
 │   ├── README.md
