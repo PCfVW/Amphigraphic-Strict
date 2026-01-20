@@ -22,11 +22,30 @@ AI coding assistants predict "most likely" code, but many language features allo
 
 *See the [full paper](Amphigraphic_Language_Guide.md) for detailed methodology and all 15 research references.*
 
+## Empirical Validation: Three-Level Hierarchy Study
+
+The theoretical recommendations in this guide have been empirically tested in the [d-Heap Priority Queue experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment). Key findings:
+
+| Hypothesis | Prediction | Result |
+|------------|------------|--------|
+| Type signatures constrain output | Types < Docs < Baseline | ✅ **Confirmed**: -23% tokens, +23 points API conformance |
+| Documentation helps | Docs < Baseline | ❌ **Contradicted**: Docs ≈ Baseline (+1.6%) |
+| Combined context is best | Combined < All | ❌ **Contradicted**: Combined = worst (+5.4%) |
+
+**New discoveries:**
+- **Prompt structure matters**: `@import("module")` triggers test suppression; inline presentation triggers 100% preservation
+- **Model tier matters**: Opus interprets tests as specs; Sonnet/Haiku 4.5 preserves them verbatim
+- **100% test preservation**: Rust, Zig (inline), and Python doctests achieve perfect preservation with Sonnet
+
+**Practical implication**: Provide type signatures, not documentation. For inline-test languages (Rust, Zig), include example tests inline for 100% preservation.
+
+See the [full experiment](https://github.com/PCfVW/d-Heap-priority-queue/blob/master/experiment/results/three_level_hypothesis_findings.md) for methodology and complete data.
+
 ## Quick Start
 
 First, clone this repository:
 ```bash
-git clone https://github.com/your-org/Amphigraphic-Strict.git
+git clone https://github.com/PCfVW/Amphigraphic-Strict.git
 cd Amphigraphic-Strict
 ```
 

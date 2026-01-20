@@ -1,19 +1,34 @@
 # Amphigraphic Language Guide
 *A Practical Guide to Language Selection for AI-Assisted Development*
 
-**Eric Jacopin & Claude Opus 4.5**  
-*January 2026*
+**&Eacute;ric Jacopin**  
+*January 17th, 2026*
 
 ---
 
 **Amphigraphic** (from Greek *ἀμφί* [amphi] = "both ways" + *γραφή* [graphē] = "writing"): development that flows in both directions between representations.
 
-Amphigraphic development—the practice of maintaining consistency across specifications, code, and tests using AI transformations—depends on accurate bidirectional code generation and comprehension. This guide identifies which languages best support these transformations.
+Amphigraphic development, i.e. *the practice of maintaining consistency across specifications, code, and tests using AI transformations*, depends on accurate bidirectional code generation and comprehension. This guide identifies which languages best support these transformations.
+
+---
+
+## Abstract
+
+**The Problem:** AI coding assistants predict "most likely" code from patterns, but many languages allow multiple valid interpretations for the same intent. When the AI guesses wrong, you get subtle bugs that compile but fail at runtime.
+
+**What This Document Covers:** We analyze concrete failure modes across languages (including C++, Python, JavaScript), identify the language properties that research suggests minimize AI errors, propose a scoring framework for current languages with ecosystem factors, and provide actionable fixes for both AI *writing* code (generation) and AI *reading* code (comprehension).
+
+**Why Read This:** Despite growing reliance on AI coding assistants, few empirical studies have compared AI code generation accuracy across programming languages. This guide provides a *practical framework*—grounded in documented failure modes, supported by adjacent research on type systems and LLM bugs, and now **empirically validated** through the [Three-Level Hierarchy experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment).
+
+By the end, you'll have (1) a proposed scoring framework to evaluate any language's AI-friendliness, (2) concrete patterns to harden your current stack, and (3) specific prompts that prevent the most common AI mistakes in Go, Kotlin, Rust, TypeScript, and Zig. The appendices introduce four experimental "strict" subsets—**Cog** (Go), **Grit** (Rust), **Terse** (TypeScript), and **Gizmo** (Zig)—designed to push AI accuracy higher by eliminating ambiguity. These subsets are enforceable today with existing linters.
+
+We offer this as a starting point for practitioners and researchers alike. The framework is falsifiable: if your experience contradicts our recommendations, we want to know.
 
 ---
 
 ## Table of Contents
 
+- [Empirical Validation: Three-Level Hierarchy Study](#empirical-validation-three-level-hierarchy-study) ← **NEW**
 1. [Concrete AI Failure Modes (With Examples)](#1-concrete-ai-failure-modes-with-examples)
 2. [Required Properties for AI-Optimal Languages](#2-required-properties-for-ai-optimal-languages)
 3. [Language Scorecard](#3-language-scorecard)
@@ -27,21 +42,58 @@ Amphigraphic development—the practice of maintaining consistency across specif
 11. [Appendix A: Cog — A Strict Go for AI-Assisted Development](#appendix-a-cog--a-strict-go-for-ai-assisted-development)
 12. [Appendix B: Grit — A Strict Rust for AI-Assisted Development](#appendix-b-grit--a-strict-rust-for-ai-assisted-development)
 13. [Appendix C: Terse — A Strict TypeScript for AI-Assisted Development](#appendix-c-terse--a-strict-typescript-for-ai-assisted-development)
-14. [Note on Kotlin](#note-on-kotlin)
+14. [Appendix D: Gizmo — A Strict Zig for AI-Assisted Development](#appendix-d-gizmo--a-strict-zig-for-ai-assisted-development)
+15. [Appendix E: Unified Comment Markers Reference](#appendix-e-unified-comment-markers-reference)
+16. [Note on Kotlin](#note-on-kotlin)
 
 ---
 
-## Abstract
+## Empirical Validation: Three-Level Hierarchy Study
 
-**The Problem:** AI coding assistants predict "most likely" code from patterns, but many languages allow multiple valid interpretations for the same intent. When the AI guesses wrong, you get subtle bugs that compile but fail at runtime.
+*Added January 2026*
 
-**What This Document Covers:** We analyze concrete failure modes across languages (including C++, Python, JavaScript), identify the language properties that research suggests minimize AI errors, propose a scoring framework for current languages with ecosystem factors, and provide actionable fixes for both AI *writing* code (generation) and AI *reading* code (comprehension).
+The theoretical recommendations in this guide have been empirically tested through the [Three-Level Hierarchy experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment), which studied AI code generation across 5 languages (Go, Rust, C++, TypeScript, Zig), 5 prompt conditions, and 7 Claude models.
 
-**Why Read This:** Despite growing reliance on AI coding assistants, no head-to-head empirical study has yet compared AI code generation accuracy across programming languages. This guide fills that gap with a *practical framework*—grounded in documented failure modes and supported by adjacent research on type systems and LLM bugs—rather than waiting for perfect data.
+### Summary of Findings
 
-By the end, you'll have (1) a proposed scoring framework to evaluate any language's AI-friendliness, (2) concrete patterns to harden your current stack, and (3) specific prompts that prevent the most common AI mistakes in Go, Kotlin, Rust, and TypeScript. The appendices introduce three experimental "strict" subsets—**Cog** (Go), **Grit** (Rust), and **Terse** (TypeScript)—designed to push AI accuracy higher by eliminating ambiguity. These subsets are enforceable today with existing linters.
+| Hypothesis | Prediction | Result |
+|------------|------------|--------|
+| **Type signatures constrain output** | Struct-guided < Doc-guided < Baseline | ✅ **Confirmed**: -23% tokens, +23 points API conformance |
+| **Documentation helps AI understand** | Doc-guided < Baseline | ❌ **Contradicted**: Doc ≈ Baseline (+1.6%) |
+| **Combined context is best** | Combined < All others | ❌ **Contradicted**: Combined = worst (+5.4%) |
+| **Tests provide guidance** | Test-guided < Struct-guided | ❌ **Contradicted**: Tests cause elaboration, not constraint |
 
-We offer this as a starting point for practitioners and researchers alike. The framework is falsifiable: if your experience contradicts our recommendations, we want to know.
+### Key Discoveries
+
+1. **Type signatures are the most effective guidance** — 23% fewer tokens and 23 percentage points better API conformance than documentation
+2. **Documentation provides essentially no benefit** — equivalent to a bare prompt
+3. **"Kitchen sink" prompts hurt** — combining all context produces the most verbose output
+4. **Prompt structure determines output structure** — `@import("module")` triggers test suppression; inline presentation triggers 100% preservation
+5. **Model tier matters** — Opus interprets tests as specifications; Sonnet/Haiku 4.5 preserves them with 100% fidelity
+6. **100% test preservation** for inline-test languages — Rust, Zig (inline), and Python doctests achieve perfect preservation with Sonnet
+
+### Implications for This Guide
+
+| Original Recommendation | Validation Status | Updated Guidance |
+|------------------------|-------------------|------------------|
+| Provide type signatures | ✅ Strongly validated | **Primary recommendation** |
+| Include documentation | ⚠️ Not supported by data | De-emphasize; skip docstrings in prompts |
+| Use tests for guidance | ⚠️ Nuanced | Use tests for *validation*, not input; or use inline test scaffolding for Rust/Zig |
+
+### Practical Guide: How to Prompt for Test Generation
+
+For inline-test languages (Rust, Zig, Python), you can achieve **100% test preservation**:
+
+| Language | Want Tests? | Prompt Strategy |
+|----------|-------------|-----------------|
+| **Rust** | Yes | Include example `#[test]` functions inline. The `mod tests {}` wrapper is optional. |
+| **Zig** | Yes | Present types and tests inline (no `@import`). With `@import`: 0 tests (suppression). |
+| **Python** | Yes | Include doctests (`>>>`) in docstrings. 100% preservation rate. |
+| **Go/C++/TypeScript** | Yes | Generate implementation first, then request a separate test file. |
+
+**The suppression paradox**: Showing test examples with `@import` can actually *suppress* the model's natural tendency to generate tests. Structure your prompt as a self-contained artifact if you want tests included.
+
+See the [full experiment findings](https://github.com/PCfVW/d-Heap-priority-queue/blob/master/experiment/results/three_level_hypothesis_findings.md) for complete methodology, data tables, and theoretical grounding.
 
 ---
 
@@ -167,6 +219,7 @@ Each star = 4 points. Maximum = 25 stars (100 points). For scoring criteria, see
 | **Rust** | ★★★★★ | ★★★★★ | ★★★☆☆ | ★★★★★ | ★★★☆☆ | 21 | 84/100 |
 | **OCaml/F#** | ★★★★★ | ★★★★★ | ★★★☆☆ | ★★★★★ | ★★☆☆☆ | 20 | 80/100 |
 | **TypeScript** | ★★★★☆ | ★★★☆☆ | ★★★★☆ | ★★★☆☆ | ★★★★★ | 19 | 76/100 |
+| **Zig** | ★★★★☆ | ★★★★★ | ★★★☆☆ | ★★★★☆ | ★★☆☆☆ | 18 | 72/100 |
 | **Python** | ★★★☆☆ | ★★☆☆☆ | ★★★★☆ | ★★☆☆☆ | ★★★★★ | 16 | 64/100 |
 | **C++** | ★★★★☆ | ★★☆☆☆ | ★☆☆☆☆ | ★★☆☆☆ | ★★★★★ | 14 | 56/100 |
 | **JavaScript** | ★☆☆☆☆ | ★☆☆☆☆ | ★★★☆☆ | ★☆☆☆☆ | ★★★★★ | 11 | 44/100 |
@@ -176,6 +229,7 @@ Each star = 4 points. Maximum = 25 stars (100 points). For scoring criteria, see
 - **Kotlin** has *no major weaknesses* (4+ stars everywhere), making it the "well-rounded athlete"
 - **OCaml/F#** scores high on correctness but loses points on ecosystem reach
 - **TypeScript** benefits from the massive JS ecosystem but loses points on explicitness (`any`, type assertions)
+- **Zig** scores well on explicitness (no hidden control flow, no hidden allocations) but has a small ecosystem; its `comptime` complexity reduces simplicity
 - **C++ scores below Python**—strong typing can't compensate for extreme complexity
 - **Python/JavaScript** remain low despite huge ecosystems—ecosystem can't fix fundamental AI ambiguity
 
@@ -653,6 +707,7 @@ AI Accuracy ∝ f(Type Strictness × Explicitness × Simplicity)
 - [**Cog**](#appendix-a-cog--a-strict-go-for-ai-assisted-development) (strict Go) — Eliminates error-handling and nil ambiguity (projected: 96/100)
 - [**Terse**](#appendix-c-terse--a-strict-typescript-for-ai-assisted-development) (strict TypeScript) — Eliminates type escape hatches (projected: 92/100)
 - [**Grit**](#appendix-b-grit--a-strict-rust-for-ai-assisted-development) (strict Rust) — Makes implicit behaviors explicit (projected: 92/100)
+- [**Gizmo**](#appendix-d-gizmo--a-strict-zig-for-ai-assisted-development) (strict Zig) — Documents ownership and simplifies comptime (projected: 80/100)
 
 **The single highest-impact change:** Add explicit types to everything. This alone substantially reduces AI errors in any language.
 
@@ -664,73 +719,73 @@ The following research informs the claims and recommendations in this guide:
 
 ### Type Systems and AI Code Generation
 
-1. **Mündler, N., He, J., Wang, H., Sen, K., Song, D., & Vechev, M.** (2025). "Type-Constrained Code Generation with Language Models." *PLDI 2025*. arXiv:2504.09246. ETH Zurich & UC Berkeley.
+1. **Mündler, N., He, J., Wang, H., Sen, K., Song, D., & Vechev, M.** (2025). "Type-Constrained Code Generation with Language Models." *PLDI 2025*. [arXiv:2504.09246](https://arxiv.org/abs/2504.09246). ETH Zurich & UC Berkeley.
    - Key finding: Type-constrained decoding reduced compilation errors by **74.8%** on HumanEval and **56.0%** on MBPP compared to unconstrained generation. On average, 94% of compilation errors result from failing type checks.
    - Supports: Section 2's emphasis on static typing as a critical property; the Terse (TypeScript) subset rationale.
 
-2. **Huang, Z., et al.** (2025). "TyFlow: Learning to Guarantee Type Correctness in Code Generation through Type-Guided Program Synthesis." *arXiv:2510.10216*.
+2. **Huang, Z., Zhang, Z., Ji, R., Xia, T., Zhu, Q., Cao, Q., Sun, Z., & Xiong, Y.** (2025). "TyFlow: Learning to Guarantee Type Correctness in Code Generation through Type-Guided Program Synthesis." [arXiv:2510.10216](https://arxiv.org/abs/2510.10216).
    - Key finding: Type errors account for **33.6%** of failed LM-generated programs (citing Tambon et al., 2025 and Dou et al., 2024). TyFlow eliminates type errors entirely through type-guided synthesis.
    - Supports: Section 2's Tier 1 property of static typing as critical.
 
 ### Bug Patterns in LLM-Generated Code
 
-3. **Tambon, F., Moradi Dakhel, A., et al.** (2025). "Bugs in Large Language Models Generated Code." *Empirical Software Engineering* (journal, peer-reviewed).
+3. **Tambon, F., Moradi Dakhel, A., Nikanjam, A., Khomh, F., Desmarais, M.C., & Antoniol, G.** (2025). "Bugs in Large Language Models Generated Code." *Empirical Software Engineering* (journal, peer-reviewed). [arXiv:2403.08937](https://arxiv.org/abs/2403.08937).
    - Key finding: Identified 10 distinctive bug patterns including "Wrong Input Type," "Missing Corner Case," "Hallucinated Object," and "Prompt-biased code."
    - Supports: Section 1's concrete failure modes; the rationale for explicit typing and error handling.
 
-4. **Dou, S., et al.** (2024). "What's Wrong with Your Code Generated by Large Language Models? An Extensive Study." *arXiv:2407.06153*.
+4. **Dou, S., Jia, H., Wu, S., Zheng, H., Wu, M., et al.** (2024). "What's Wrong with Your Code Generated by Large Language Models? An Extensive Study." [arXiv:2407.06153](https://arxiv.org/abs/2407.06153).
    - Key finding: LLMs achieve ~41.6% average passing rate; they struggle with complex problems and produce code that is "shorter yet more complicated" than canonical solutions. Developed a 12-category bug taxonomy.
    - Supports: The complexity dimension in our scoring rubric; the value of simplicity (Section 2, Tier 1).
 
-5. **Huynh, N. & Lin, B.** (2025). "Large Language Models for Code Generation: A Comprehensive Survey of Challenges, Techniques, Evaluation, and Applications." *arXiv:2503.01245*.
+5. **Huynh, N. & Lin, B.** (2025). "Large Language Models for Code Generation: A Comprehensive Survey of Challenges, Techniques, Evaluation, and Applications." [arXiv:2503.01245](https://arxiv.org/abs/2503.01245).
    - Key finding: Survey synthesizing error patterns across studies, including Liu et al.'s analysis showing "Type Mismatch errors are more frequent in Python because of its dynamic typing system" while "Illegal Index errors account for 46.4% of the 97 runtime errors in Java."
    - Supports: The language comparison claims; why dynamic typing causes specific failure patterns.
 
-6. **Pan, R., et al.** (2024). "Lost in Translation: A Study of Bugs Introduced by Large Language Models while Translating Code." *ICSE 2024*. arXiv:2308.03109.
+6. **Pan, R., Ibrahimzada, A.R., Krishna, R., Sankar, D., Wassi, L.P., et al.** (2024). "Lost in Translation: A Study of Bugs Introduced by Large Language Models while Translating Code." *ICSE 2024*. [arXiv:2308.03109](https://arxiv.org/abs/2308.03109).
    - Key finding: Correct translations ranged from only **2.1% to 47.3%** across studied LLMs; identified 15 categories of translation bugs across C, C++, Go, Java, and Python.
    - Supports: Cross-language comparison; the importance of consistent language semantics.
 
 ### Static Analysis as Feedback
 
-7. **Dolcetti, G., Arceri, V., Iotti, E., Maffeis, S., Cortesi, A., & Zaffanella, E.** (2024). "Helping LLMs Improve Code Generation Using Feedback from Testing and Static Analysis." *arXiv:2412.14841*.
+7. **Dolcetti, G., Arceri, V., Iotti, E., Maffeis, S., Cortesi, A., & Zaffanella, E.** (2024). "Helping LLMs Improve Code Generation Using Feedback from Testing and Static Analysis." [arXiv:2412.14841](https://arxiv.org/abs/2412.14841).
    - Key finding: Experiments revealed a gap in LLMs' ability to generate fully compliant and secure code autonomously; proposes a framework leveraging testing and static analysis to guide self-improvement.
    - Supports: Section 4's recommendation for linter-based enforcement.
 
-8. **Shaikhelislamov, D., Drobyshevskiy, M., & Belevantsev, A.** (2024). "CodePatchLLM: Configuring code generation using a static analyzer." *KDD GenAI Evaluation Workshop*.
+8. **Shaikhelislamov, D., Drobyshevskiy, M., & Belevantsev, A.** (2024). "CodePatchLLM: Configuring code generation using a static analyzer." *KDD GenAI Evaluation Workshop*. [PDF](https://genai-evaluation-kdd2024.github.io/genai-evalution-kdd2024/assets/papers/GenAI_Evaluation_KDD2024_paper_25.pdf).
    - Key finding: Using CodeLlama with Svace static analyzer feedback improves executability by **45%** for Java and **10%** for Kotlin.
    - Supports: The value of static analysis integration; linter enforcement recommendations.
 
 ### AI Coding Assistant Productivity
 
-9. **Peng, S., Kalliamvakou, E., Cihon, P., & Demirer, M.** (2023). "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot." *arXiv:2302.06590*.
+9. **Peng, S., Kalliamvakou, E., Cihon, P., & Demirer, M.** (2023). "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot." [arXiv:2302.06590](https://arxiv.org/abs/2302.06590).
    - Key finding: Developers with Copilot access completed tasks **55.8% faster** than the control group.
    - Supports: The general premise that AI-assisted development is valuable and worth optimizing for.
 
-10. **Ziegler, A., Kalliamvakou, E., et al.** (2024). "Measuring GitHub Copilot's Impact on Productivity." *Communications of the ACM*, 67(3), 54-63.
+10. **Ziegler, A., Kalliamvakou, E., Li, X.A., Rice, A., Rifkin, D., et al.** (2024). "Measuring GitHub Copilot's Impact on Productivity." *Communications of the ACM*, 67(3), 54-63. [DOI:10.1145/3633453](https://dl.acm.org/doi/10.1145/3633453).
     - Key finding: Acceptance rate of suggestions predicts perceived productivity; developers report improved focus and satisfaction.
     - Supports: The value of reducing AI friction through language choice.
 
-11. **Cui, K. Z., Demirer, M., Jaffe, S., Musolff, L., Peng, S., & Salz, T.** (2024). "The Effects of Generative AI on High-Skilled Work: Evidence from Three Field Experiments with Software Developers."
+11. **Cui, Z.K., Demirer, M., Jaffe, S., Musolff, L., Peng, S., & Salz, T.** (2024). "The Effects of Generative AI on High-Skilled Work: Evidence from Three Field Experiments with Software Developers." [SSRN](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4945566).
     - Key finding: **26.08%** increase in pull requests completed per week for developers using GitHub Copilot in field experiments at Microsoft and Accenture.
     - Supports: Productivity gains from AI-assisted development.
 
 ### Multi-Language Benchmarks
 
-12. **Chen, M., et al.** (2021). "Evaluating Large Language Models Trained on Code." *arXiv:2107.03374*.
+12. **Chen, M., Tworek, J., Jun, H., Yuan, Q., Pinto, H.P.O., et al.** (2021). "Evaluating Large Language Models Trained on Code." [arXiv:2107.03374](https://arxiv.org/abs/2107.03374).
     - Key finding: Original HumanEval benchmark; established the foundation for measuring code generation capabilities.
     - Supports: The benchmarking methodology underlying language comparisons.
 
-13. **Zheng, Q., et al.** (2023). "CodeGeeX: A Pre-Trained Model for Code Generation with Multilingual Benchmarking on HumanEval-X." *KDD 2023*.
+13. **Zheng, Q., Xia, X., Zou, X., Dong, Y., Wang, S., et al.** (2023). "CodeGeeX: A Pre-Trained Model for Code Generation with Multilingual Benchmarking on HumanEval-X." *KDD 2023*. [arXiv:2303.17568](https://arxiv.org/abs/2303.17568).
     - Key finding: HumanEval-X provides 820 hand-crafted problem–solution pairs in Python, C++, Java, JavaScript, and Go; performance varies significantly across languages.
     - Supports: The claim that language choice affects AI code generation quality.
 
-14. **Peng, Q., Chai, Y., & Li, X.** (2024). "HumanEval-XL: A Multilingual Code Generation Benchmark for Cross-lingual Natural Language Generalization." *LREC-COLING 2024*.
+14. **Peng, Q., Chai, Y., & Li, X.** (2024). "HumanEval-XL: A Multilingual Code Generation Benchmark for Cross-lingual Natural Language Generalization." *LREC-COLING 2024*. [arXiv:2402.16694](https://arxiv.org/abs/2402.16694).
     - Key finding: Covers 12 programming languages including Go, Kotlin, TypeScript; demonstrates cross-language performance gaps.
     - Supports: Empirical basis for language scorecard differences.
 
 ### Systematic Reviews
 
-15. **Husein, R. A., Aburajouh, H., & Catal, C.** (2024). "Large Language Models for Code Completion: A Systematic Literature Review." *Computer Standards & Interfaces*, 92, 103917.
+15. **Husein, R.A., Aburajouh, H., & Catal, C.** (2025). "Large Language Models for Code Completion: A Systematic Literature Review." *Computer Standards & Interfaces*, 92, 103917. [DOI:10.1016/j.csi.2024.103917](https://doi.org/10.1016/j.csi.2024.103917).
     - Key finding: LLMs utilizing Transformer algorithms have become dominant for code completion; productivity gains come from reduced cognitive load.
     - Supports: The document's focus on reducing AI prediction ambiguity.
 
@@ -1488,6 +1543,339 @@ Applying the proposed rubric to Terse yields the following improvements. Unlike 
 | 7 | Update AI prompts with Terse rules | Review AI output quality |
 
 **Expected outcome:** Elimination of type-escape and narrowing-related failure modes documented in Sections 6-7.
+
+---
+
+## Appendix D: Gizmo — A Strict Zig for AI-Assisted Development
+
+*Gizmo: a precise, clever device—Zig's explicit machinery, with every gear visible.*
+
+Zig scores 72/100, with its main weakness being ecosystem size (★★☆☆☆) and `comptime` complexity reducing simplicity (★★★☆☆). **Gizmo** is a restricted subset that adds documentation requirements and restricts patterns that confuse AI tools.
+
+> **Empirical basis:** Gizmo's rules are *inferred* from general LLM error research and Zig's documented design rationale rather than Zig-specific AI studies. The allocator ownership rules target the "Wrong Attribute" and "Missing Corner Case" failures identified by Tambon et al. [Ref 3]. The error handling rules extend research showing 33.6% of LLM failures are type errors [Ref 2] to Zig's error union types. No direct study has yet measured AI accuracy improvements for Zig-specific constraints—this represents an open research opportunity.
+
+### D.1 Zig's AI-Friendly Foundation
+
+Zig is already more explicit than most languages, providing a strong foundation for AI-assisted development:
+
+| Zig Design | AI Benefit |
+|------------|------------|
+| No hidden control flow | AI can trace all execution paths |
+| No hidden allocations | AI knows where memory is allocated |
+| Explicit error unions | AI sees all error types |
+| No operator overloading | AI knows what operators do |
+| No garbage collection | AI understands memory lifetime |
+| `comptime` vs runtime clear | AI knows what's computed when |
+
+Gizmo builds on these strengths by adding documentation requirements and restricting patterns that remain ambiguous.
+
+### D.2 What Gizmo Provides
+
+| Zig Weakness | Gizmo Rule | AI Benefit |
+|--------------|------------|------------|
+| Allocator ownership unclear | Document ownership in comments | AI knows who frees memory |
+| Implicit error discarding | All `try` in explicit blocks | AI sees error paths |
+| `comptime` over-complexity | Limit to type construction | AI predicts simpler code |
+| Optional chaining confusion | Explicit `orelse` required | AI sees null handling |
+| Catch-all error handling | Exhaustive switches required | AI handles all cases |
+| `anytype` ambiguity | Document constraints | AI knows type requirements |
+| `unreachable` misuse | Only for provable states | AI doesn't hide bugs |
+
+**Bug Pattern Prevention (Tambon et al. [Ref 3]):**
+
+| Gizmo Rule | Prevents Bug Pattern |
+|------------|---------------------|
+| Allocator ownership docs | "Wrong Attribute," "Missing Corner Case" |
+| Explicit error handling | "Missing Corner Case" |
+| Document `anytype` | "Wrong Input Type," "Hallucinated Object" |
+| No catch-all errors | "Missing Corner Case" |
+| Explicit optionals | "Missing Corner Case," "Wrong Attribute" |
+
+### D.3 Gizmo Rules Reference
+
+#### Rule 1: Document Allocator Ownership
+```zig
+// ❌ BANNED in Gizmo (ownership unclear)
+pub fn createBuffer(allocator: std.mem.Allocator) ![]u8 {
+    return allocator.alloc(u8, 1024);
+}
+
+// ✅ Gizmo: Document who frees
+/// Creates a buffer of 1024 bytes.
+///
+/// OWNERSHIP: Caller owns returned memory. Must free with same allocator.
+pub fn createBuffer(allocator: std.mem.Allocator) ![]u8 {
+    return allocator.alloc(u8, 1024);
+}
+```
+
+#### Rule 2: Explicit Error Handling
+```zig
+// ❌ BANNED in Gizmo (error discarded silently)
+const value = parseNumber(input) catch 0;
+
+// ✅ Gizmo: Explicit error handling with documented fallback
+const value = parseNumber(input) catch |err| blk: {
+    // FALLBACK: Default to 0 on parse failure (expected for user input)
+    log.debug("parse failed: {}, using default", .{err});
+    break :blk 0;
+};
+```
+
+#### Rule 3: Exhaustive Error Switches
+```zig
+// ❌ BANNED in Gizmo (catch-all hides cases)
+fn handleError(err: anyerror) void {
+    switch (err) {
+        error.OutOfMemory => handleOom(),
+        else => {}, // What errors are ignored?
+    }
+}
+
+// ✅ Gizmo: All errors explicit
+fn handleFileError(err: std.fs.File.OpenError) void {
+    switch (err) {
+        error.FileNotFound => log.err("file not found", .{}),
+        error.AccessDenied => log.err("access denied", .{}),
+        // ... all other variants explicitly listed
+    }
+}
+```
+
+#### Rule 4: Explicit Optional Handling
+```zig
+// ❌ BANNED in Gizmo (chained .? obscures null paths)
+const name = user.?.profile.?.displayName.?;
+
+// ✅ Gizmo: Explicit orelse with documented fallback
+const name = blk: {
+    const u = user orelse break :blk "anonymous"; // USER: null = anonymous
+    const profile = u.profile orelse break :blk u.username;
+    break :blk profile.displayName orelse u.username;
+};
+```
+
+#### Rule 5: Document `anytype` Constraints
+```zig
+// ❌ BANNED in Gizmo (what does T require?)
+pub fn process(value: anytype) void {
+    value.doSomething();
+}
+
+// ✅ Gizmo: Constraints documented
+/// TYPE CONSTRAINT: `value` must have `fn doSomething(self) void`
+pub fn process(value: anytype) void {
+    value.doSomething();
+}
+```
+
+#### Rule 6: Limit `comptime` to Type Construction
+```zig
+// ❌ BANNED in Gizmo (complex comptime logic)
+pub fn computeValue(comptime n: usize) comptime_int {
+    comptime {
+        var result: comptime_int = 0;
+        for (0..n) |i| {
+            result += fibonacci(i); // Complex comptime computation
+        }
+        return result;
+    }
+}
+
+// ✅ Gizmo: comptime for types and static assertions only
+pub fn Matrix(comptime rows: usize, comptime cols: usize) type {
+    return struct {
+        data: [rows][cols]f64,
+        // TYPE CONSTRUCTION: comptime used only for type shape
+    };
+}
+```
+
+#### Rule 7: One `defer` Per Resource, Documented
+```zig
+// ❌ BANNED in Gizmo (cleanup order unclear)
+fn processFile(allocator: std.mem.Allocator, path: []const u8) !void {
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+    const buffer = try allocator.alloc(u8, 1024);
+    defer allocator.free(buffer);
+    // Which defer runs first?
+}
+
+// ✅ Gizmo: Documented cleanup order
+fn processFile(allocator: std.mem.Allocator, path: []const u8) !void {
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close(); // CLEANUP[2]: File closed last
+
+    const buffer = try allocator.alloc(u8, 1024);
+    defer allocator.free(buffer); // CLEANUP[1]: Buffer freed first (LIFO)
+}
+```
+
+#### Rule 8: `unreachable` Only for Provable States
+```zig
+// ❌ BANNED in Gizmo (hiding potential bugs)
+fn getStatus(code: u8) Status {
+    return switch (code) {
+        0 => .idle,
+        1 => .running,
+        2 => .complete,
+        else => unreachable, // What if code is 3?
+    };
+}
+
+// ✅ Gizmo: Explicit error for unexpected values
+fn getStatus(code: u8) !Status {
+    return switch (code) {
+        0 => .idle,
+        1 => .running,
+        2 => .complete,
+        else => error.InvalidStatusCode, // EXPLICIT: Unknown codes are errors
+    };
+}
+```
+
+### D.4 Gizmo AI Prompt Template
+
+```
+When writing Zig, follow Gizmo (strict Zig) rules:
+1. DOCUMENT allocator ownership in comments (OWNERSHIP: caller/callee frees)
+2. NEVER silently discard errors - use explicit catch blocks with comments
+3. SWITCH on specific error sets, never use `else` without documenting why
+4. USE explicit `orelse` with documented fallback, not chained `.?`
+5. DOCUMENT `anytype` constraints in function comments
+6. LIMIT `comptime` to type construction and static assertions only
+7. ONE `defer` per resource with CLEANUP[n] order comments when order matters
+8. PREFER slices over pointer arithmetic for bounds safety
+9. USE `unreachable` only for provably impossible states
+10. USE `errdefer` to clean up on error paths
+```
+
+### D.5 Gizmo Scorecard (Projected)
+
+Applying the proposed rubric to Gizmo yields the following *theoretical* improvements. These projections are based on the properties identified in Sections 2-3 and supported by general LLM research [Refs 2-4], but **have not been empirically validated** for Zig specifically. We encourage researchers to measure actual AI accuracy improvements with Gizmo constraints.
+
+| Dimension | Zig | Gizmo | Improvement |
+|-----------|-----|-------|-------------|
+| Typing | ★★★★☆ | ★★★★☆ | Same (strong compile-time types) |
+| Explicit | ★★★★★ | ★★★★★ | Same (rules reinforce) |
+| Simplicity | ★★★☆☆ | ★★★★☆ | Reduced `comptime` complexity |
+| Error Handling | ★★★★☆ | ★★★★★ | All errors visibly handled |
+| Ecosystem | ★★☆☆☆ | ★★☆☆☆ | Same (growing but small) |
+| **Total** | **18 → 72** | **20 → 80** | *Projected* (unvalidated) |
+
+### D.6 Migration Path: Zig → Gizmo
+
+| Week | Action | Verification |
+|------|--------|--------------|
+| 1 | Add ownership documentation to public functions | Code review |
+| 2 | Replace silent `catch` with documented blocks | `grep` for uncommented `catch` |
+| 3 | Add `TYPE CONSTRAINT` docs to `anytype` functions | Code review |
+| 4 | Add `CLEANUP[n]` comments to `defer` statements | Code review |
+| 5 | Replace `unreachable` with explicit errors where appropriate | Test coverage |
+| 6 | Update AI prompts with Gizmo rules | Review AI output quality |
+
+**Expected outcome:** Elimination of allocator-related and error-handling failure modes.
+
+---
+
+## Appendix E: Unified Comment Markers Reference
+
+The strict subsets use standardized comment markers to document intent. This table shows which markers are used across subsets and their purposes.
+
+### Shared Markers (Cross-Language)
+
+| Marker | Cog | Grit | Terse | Gizmo | Stoic | Purpose |
+|--------|-----|------|-------|-------|-------|---------|
+| `OWNERSHIP:` | | | | ✓ | ✓ | Documents who owns/frees a resource |
+| `BORROW:` | | ✓ | | ✓ | ✓ | Documents non-owning reference |
+| `SAFETY:` | ✓ | ✓ | | | ✓ | Documents unsafe code invariants or platform-specific code |
+| `FALLBACK:` | ✓ | | ✓ | ✓ | | Documents default value on error |
+| `IGNORE:` | ✓ | | | | | Documents intentionally discarded error |
+| `EXPLICIT:` | | ✓ | | ✓ | | Documents explicit handling of edge case |
+
+### Language-Specific Markers
+
+| Marker | Subset | Purpose |
+|--------|--------|---------|
+| `CAPTURE:` | Cog | Loop variable copied for goroutine |
+| `TRAIT_OBJECT:` | Grit | Justifies dynamic dispatch usage |
+| `NARROWED:` | Terse | Value captured before async boundary |
+| `PRECONDITION:` | Stoic | Documents function preconditions (C++ has no contracts yet) |
+| `UB:` | Stoic | Documents where undefined behavior can occur |
+| `MAP_ACCESS:` | Stoic | Documents intentional `operator[]` insertion behavior |
+| `COPY:` | Stoic | Documents intentional pass-by-value for isolation/rollback |
+| `TYPE_LIMIT:` | Stoic | Documents numeric constraints of type aliases |
+| `PLATFORM:` | Stoic | Documents platform-specific conditional compilation |
+| `COMPTIME:` | Gizmo | Must be known at compile time |
+| `CLEANUP[n]:` | Gizmo | Defer execution order (LIFO) |
+| `TYPE CONSTRAINT:` | Gizmo | Required interface for `anytype` |
+| `C INTEROP:` | Gizmo | External format requirement |
+| `PROPAGATE:` | Gizmo | Error propagated to caller |
+| `NULL:` | Gizmo | Documents null/optional semantics |
+| `UNREACHABLE:` | Gizmo | Proves state is impossible |
+| `STATIC ASSERT:` | Gizmo | Compile-time validation |
+
+### Usage Examples
+
+```go
+// Cog (Go)
+item := item  // CAPTURE: loop variable copied for goroutine
+_ = err       // IGNORE: fallback value acceptable here
+return nil    // SAFETY: interface returns bare nil, not typed nil
+value := computeOrDefault()  // FALLBACK: returns 0 on error
+```
+
+```rust
+// Grit (Rust)
+/// SAFETY: Caller must ensure data is valid Value layout
+unsafe fn transmute_value(data: &[u8]) -> &Value { ... }
+
+let bytes: &[u8] = input.as_bytes();  // BORROW: explicit conversion
+// TRAIT_OBJECT: Required for heterogeneous collection
+let handlers: Vec<Box<dyn Handler>> = ...;
+```
+
+```typescript
+// Terse (TypeScript)
+const validUser = user;  // NARROWED: captured before async boundary
+const name = user?.name ?? "anonymous";  // FALLBACK: default for missing
+```
+
+```zig
+// Gizmo (Zig)
+/// OWNERSHIP: Caller owns returned memory. Must free with same allocator.
+/// BORROW: allocator - callee does not take ownership.
+pub fn createBuffer(allocator: std.mem.Allocator) ![]u8 { ... }
+
+defer file.close();        // CLEANUP[2]: File closed last
+defer allocator.free(buf); // CLEANUP[1]: Buffer freed first
+```
+
+```cpp
+// Stoic (C++)
+void add(std::unique_ptr<Item> item);  // OWNERSHIP: transfers into container
+Item* get(int index);                   // BORROW: caller does not own
+#ifdef _WIN32  // SAFETY: platform-specific code path
+
+// PRECONDITION: index must be in range [0, size())
+T& at(size_t index) { return data[index]; }
+
+// UB: calling front() on empty container is undefined behavior
+const T& front() const { return container.front(); }
+
+myMap[key] = value;  // MAP_ACCESS: intentional insertion/update
+
+// COPY: State copied intentionally for rollback on failure
+Result tryOperation(State state) { ... }
+
+typedef unsigned char PlanLength;  // TYPE_LIMIT: max 255 steps (0-255)
+
+// PLATFORM: Windows high-resolution timer
+#if defined(_MSC_VER)
+    using Timer = HighResTimer;
+#endif
+```
 
 ---
 
