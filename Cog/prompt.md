@@ -55,7 +55,8 @@ DATA STRUCTURES:
 
 COMMENTS:
 - ADD `// CAPTURE:` comments when copying loop variables for goroutines
-- ADD `// IGNORE:` comments when intentionally ignoring errors
+- ADD `// IGNORE:` comments when intentionally discarding errors
+- ADD `// FALLBACK:` comments when providing default values on error
 - ADD `// SAFETY:` comments explaining nil return decisions
 ```
 

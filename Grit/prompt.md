@@ -79,6 +79,12 @@ DOCUMENTATION:
 - ADD doc comments to all public items
 - DOCUMENT # Errors section for fallible functions
 - DOCUMENT # Panics section if any panic is possible
+
+COMMENTS:
+- ADD `/// SAFETY:` comments explaining unsafe code invariants
+- ADD `// TRAIT_OBJECT:` comments when using dynamic dispatch
+- ADD `// BORROW:` comments for explicit borrows (e.g., .as_str(), .as_bytes())
+- ADD `// EXPLICIT:` comments when handling edge cases explicitly (e.g., exhaustive match arms)
 ```
 
 ---

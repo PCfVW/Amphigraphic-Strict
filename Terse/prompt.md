@@ -72,6 +72,10 @@ DOCUMENTATION:
 - ADD JSDoc @param and @returns for public functions
 - ADD @throws documentation if using exceptions
 - ADD @example for complex functions
+
+COMMENTS:
+- ADD `// NARROWED:` comments when capturing narrowed values before async boundaries
+- ADD `// FALLBACK:` comments when providing default values with ?? or ||
 ```
 
 ---
