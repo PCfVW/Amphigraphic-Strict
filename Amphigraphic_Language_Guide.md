@@ -1,8 +1,8 @@
 # Amphigraphic Language Guide
 *A Practical Guide to Language Selection for AI-Assisted Development*
 
-**&Eacute;ric Jacopin**  
-*January 17th, 2026*
+**&Eacute;ric Jacopin**
+*January 20th, 2026* (revised with experimental findings)
 
 ---
 
@@ -18,7 +18,7 @@ Amphigraphic development, i.e. *the practice of maintaining consistency across s
 
 **What This Document Covers:** We analyze concrete failure modes across languages (including C++, Python, JavaScript), identify the language properties that research suggests minimize AI errors, propose a scoring framework for current languages with ecosystem factors, and provide actionable fixes for both AI *writing* code (generation) and AI *reading* code (comprehension).
 
-**Why Read This:** Despite growing reliance on AI coding assistants, few empirical studies have compared AI code generation accuracy across programming languages. This guide provides a *practical framework*—grounded in documented failure modes, supported by adjacent research on type systems and LLM bugs, and now **empirically validated** through the [Three-Level Hierarchy experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment).
+**Why Read This:** Despite growing reliance on AI coding assistants, few empirical studies have compared AI code generation accuracy across programming languages. This guide provides a *practical framework*—grounded in documented failure modes, supported by adjacent research on type systems and LLM bugs, and now **empirically validated** through the [Three-Level Hierarchy experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment), which tested 10 models (Claude Haiku 3/4.5, Sonnet 4/4.5, Opus 4/4.1/4.5, mistral-medium-2508, Devstral 2512, EssentialAI RNJ-1) across 5 languages and 5 prompt conditions.
 
 By the end, you'll have (1) a proposed scoring framework to evaluate any language's AI-friendliness, (2) concrete patterns to harden your current stack, and (3) specific prompts that prevent the most common AI mistakes in Go, Kotlin, Rust, TypeScript, and Zig. The appendices introduce four experimental "strict" subsets—**Cog** (Go), **Grit** (Rust), **Terse** (TypeScript), and **Gizmo** (Zig)—designed to push AI accuracy higher by eliminating ambiguity. These subsets are enforceable today with existing linters.
 
@@ -52,7 +52,7 @@ We offer this as a starting point for practitioners and researchers alike. The f
 
 *Added January 2026*
 
-The theoretical recommendations in this guide have been empirically tested through the [Three-Level Hierarchy experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment), which studied AI code generation across 5 languages (Go, Rust, C++, TypeScript, Zig), 5 prompt conditions, and 7 Claude models.
+The theoretical recommendations in this guide have been empirically tested through the [Three-Level Hierarchy experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment), which studied AI code generation across 5 languages (Go, Rust, C++, TypeScript, Zig), 5 prompt conditions, and 10 models (Claude Haiku 3, Haiku 4.5, Sonnet 4, Sonnet 4.5, Opus 4, Opus 4.1, Opus 4.5, mistral-medium-2508, Devstral 2512, and EssentialAI RNJ-1).
 
 ### Summary of Findings
 
@@ -63,22 +63,67 @@ The theoretical recommendations in this guide have been empirically tested throu
 | **Combined context is best** | Combined < All others | ❌ **Contradicted**: Combined = worst (+5.4%) |
 | **Tests provide guidance** | Test-guided < Struct-guided | ❌ **Contradicted**: Tests cause elaboration, not constraint |
 
+### Quantitative Results
+
+**Claude Sonnet 4 — Token Counts by Condition:**
+
+| Language | Baseline | Doc-guided | Struct-guided | Test-guided | Combined |
+|----------|----------|------------|---------------|-------------|----------|
+| Go | 3,135 | 2,725 | 2,634 | 2,702 | 2,788 |
+| Rust | 3,502 | 3,851 | 2,892 | 6,370 | 7,750 |
+| C++ | 2,860 | 2,496 | 1,896 | 1,782 | 2,826 |
+| TypeScript | 2,407 | 2,823 | 2,045 | 1,869 | 1,905 |
+| Zig | 4,127 | 4,656 | 3,293 | 2,177 | 2,967 |
+| **Average** | **3,206** | **3,310** | **2,552** | **2,980** | **3,647** |
+
+**Key insight**: Struct-guided prompts consistently produced the most constrained output (-20% vs baseline), while combined prompts produced the *most* verbose output (+14% vs baseline).
+
 ### Key Discoveries
 
 1. **Type signatures are the most effective guidance** — 23% fewer tokens and 23 percentage points better API conformance than documentation
-2. **Documentation provides essentially no benefit** — equivalent to a bare prompt
-3. **"Kitchen sink" prompts hurt** — combining all context produces the most verbose output
+2. **Documentation provides essentially no benefit** — equivalent to a bare prompt (+1.6% tokens, negligible conformance improvement)
+3. **"Kitchen sink" prompts hurt** — combining all context produces the most verbose output; be selective, not comprehensive
 4. **Prompt structure determines output structure** — `@import("module")` triggers test suppression; inline presentation triggers 100% preservation
-5. **Model tier matters** — Opus interprets tests as specifications; Sonnet/Haiku 4.5 preserves them with 100% fidelity
-6. **100% test preservation** for inline-test languages — Rust, Zig (inline), and Python doctests achieve perfect preservation with Sonnet
+5. **Model tier affects behavior** — Opus interprets tests as specifications (understanding but not reproducing); Sonnet/Haiku 4.5 preserves them with 100% fidelity
+6. **Python doctests are universally robust** — 100% preservation across *all* tested models (Claude, Mistral, Devstral, EssentialAI)
+
+### The Import Pattern Discovery (Zig Paradox)
+
+Models encode **file boundary semantics** learned from training data:
+
+| Prompt Pattern | Model Interpretation | Result |
+|----------------|---------------------|--------|
+| Tests with `@import("module")` | "Tests are external; generate implementation only" | 0 tests generated |
+| Tests inline (same file) | "Tests are part of artifact; preserve them" | 100% test preservation |
+
+This reveals that prompt *structure* communicates intent more effectively than prompt *content*. The same test code produces opposite results depending on how it references the implementation.
+
+### Language Culture and Test Generation
+
+| Language | Test Style | Preservation Rate | Notes |
+|----------|-----------|-------------------|-------|
+| **Python** | Doctest (`>>>`) | **100%** (all models) | Most robust—works on Claude, Mistral, Devstral, EssentialAI |
+| **Rust** | Inline (`#[test]`) | **100%** (Sonnet) | Requires inline presentation |
+| **Zig** | Inline (`test`) | **100%** (Sonnet) | Requires NO `@import`; with import = 0% |
+| **Go** | External (`_test.go`) | 0% | External test culture; generate tests separately |
+| **C++** | External (gtest) | 0% | External test culture; generate tests separately |
+| **TypeScript** | External (Jest) | 0% | External test culture; generate tests separately |
+
+### Model Selection Guide
+
+| Use Case | Recommended Model | Rationale |
+|----------|-------------------|-----------|
+| **Accuracy-critical generation** | Sonnet with type signatures | Best constraint adherence, 100% test preservation |
+| **Reasoning-heavy tasks** | Opus | Interprets tests as specs; understands intent |
+| **Cost-sensitive generation** | Haiku 4.5 | Improved test handling over Haiku 3 |
 
 ### Implications for This Guide
 
 | Original Recommendation | Validation Status | Updated Guidance |
 |------------------------|-------------------|------------------|
-| Provide type signatures | ✅ Strongly validated | **Primary recommendation** |
+| Provide type signatures | ✅ Strongly validated | **Primary recommendation** — 23% improvement |
 | Include documentation | ⚠️ Not supported by data | De-emphasize; skip docstrings in prompts |
-| Use tests for guidance | ⚠️ Nuanced | Use tests for *validation*, not input; or use inline test scaffolding for Rust/Zig |
+| Use tests for guidance | ⚠️ Nuanced | Use tests for *validation*, not input; or use inline scaffolding for Rust/Zig/Python |
 
 ### Practical Guide: How to Prompt for Test Generation
 
@@ -86,9 +131,9 @@ For inline-test languages (Rust, Zig, Python), you can achieve **100% test prese
 
 | Language | Want Tests? | Prompt Strategy |
 |----------|-------------|-----------------|
+| **Python** | Yes | Include doctests (`>>>`) in docstrings. **Most robust**: 100% across all tested models. |
 | **Rust** | Yes | Include example `#[test]` functions inline. The `mod tests {}` wrapper is optional. |
 | **Zig** | Yes | Present types and tests inline (no `@import`). With `@import`: 0 tests (suppression). |
-| **Python** | Yes | Include doctests (`>>>`) in docstrings. 100% preservation rate. |
 | **Go/C++/TypeScript** | Yes | Generate implementation first, then request a separate test file. |
 
 **The suppression paradox**: Showing test examples with `@import` can actually *suppress* the model's natural tendency to generate tests. Structure your prompt as a self-contained artifact if you want tests included.
@@ -331,14 +376,36 @@ START
 
 | If you use... | Do this today | Expected AI improvement |
 |---------------|---------------|------------------------|
-| **Python** | Add type hints everywhere, use `mypy --strict` | Significant reduction in type-related errors |
+| **Python** | Add type hints everywhere, use `mypy --strict`; use doctests for test scaffolding | Significant reduction in type-related errors; 100% test preservation |
 | **JavaScript** | Migrate to TypeScript strict mode | Major reduction in ambiguity errors |
 | **Java** | Migrate to Kotlin, or enable `@NonNull` annotations | Moderate improvement in null handling |
 | **Ruby** | Add Sorbet/RBS type signatures | Significant reduction in type errors |
 | **Go** | Adopt Cog rules (Appendix A) | Fewer error-handling and nil-related bugs |
-| **Rust** | Adopt Grit rules (Appendix B) | Fewer lifetime and conversion errors |
+| **Rust** | Adopt Grit rules (Appendix B); use inline `#[test]` for test scaffolding | Fewer lifetime and conversion errors; 100% test preservation |
 | **TypeScript** | Adopt Terse rules (Appendix C) | Fewer type-escape and narrowing bugs |
-| **Any language** | Use explicit return types on all functions | Noticeable improvement across the board |
+| **Zig** | Adopt Gizmo rules (Appendix D); present tests inline without `@import` | Fewer allocator and error-handling bugs; 100% test preservation |
+| **Any language** | Provide type signatures in prompts, not documentation | 23% fewer tokens, 23 points better API conformance |
+
+### Empirically-Validated Prompt Strategy
+
+Based on the [Three-Level Hierarchy experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment):
+
+```
+✅ DO: Provide type signatures / interfaces
+   → 23% token reduction, 23 points better API conformance
+
+❌ DON'T: Paste documentation walls
+   → +1.6% tokens, negligible improvement
+
+❌ DON'T: Combine all context ("kitchen sink")
+   → Produces the MOST verbose output (+14%)
+
+✅ DO: Use tests for validation AFTER generation
+   → Not as input guidance (causes elaboration)
+
+✅ DO: For inline-test languages, present tests inline
+   → Rust #[test], Zig test, Python doctest = 100% preservation
+```
 
 ### Configuration Checklist
 
@@ -350,9 +417,10 @@ rules:
   - "Use Result/Option types instead of null"
   - "No magic methods or metaprogramming"
   - "One statement per line, no chained mutations"
+  - "Provide type signatures, not prose documentation"  # Empirically validated
 ```
 
-For language-specific rules, see the AI prompt templates in Appendices A (Cog), B (Grit), and C (Terse).
+For language-specific rules, see the AI prompt templates in Appendices A (Cog), B (Grit), C (Terse), and D (Gizmo).
 
 ---
 
@@ -697,10 +765,22 @@ AI Accuracy ∝ f(Type Strictness × Explicitness × Simplicity)
              ÷ (Implicit Behaviors × Metaprogramming × Syntax Variants)
 ```
 
+### Empirically Validated: What Actually Works
+
+The [Three-Level Hierarchy experiment](https://github.com/PCfVW/d-Heap-priority-queue/tree/master/experiment) tested 10 models across 5 languages and confirmed:
+
+| Strategy | Effect | Empirical Evidence |
+|----------|--------|-------------------|
+| **Type signatures** | ✅ Most effective | -23% tokens, +23 points API conformance |
+| **Documentation** | ❌ No benefit | +1.6% tokens, negligible improvement |
+| **Combined context** | ❌ Counterproductive | +14% tokens (most verbose) |
+| **Inline tests** | ✅ 100% preservation | Rust, Zig, Python doctests |
+| **External test refs** | ❌ Suppresses tests | `@import` triggers 0% generation |
+
 **Top picks for new AI-assisted projects:**
 1. **Go** — When you want AI to "just work" with minimal setup (84/100)
 2. **Kotlin** — When you need JVM ecosystem with balanced AI-friendliness (84/100)
-3. **Rust** — When correctness matters more than speed-to-market (84/100)
+3. **Rust** — When correctness matters more than speed-to-market (84/100); 100% test preservation with inline `#[test]`
 4. **TypeScript (strict)** — When you need JS ecosystem but want AI reliability (76/100)
 
 **With strict subsets (see Appendices):**
@@ -709,7 +789,7 @@ AI Accuracy ∝ f(Type Strictness × Explicitness × Simplicity)
 - [**Grit**](#appendix-b-grit--a-strict-rust-for-ai-assisted-development) (strict Rust) — Makes implicit behaviors explicit (projected: 92/100)
 - [**Gizmo**](#appendix-d-gizmo--a-strict-zig-for-ai-assisted-development) (strict Zig) — Documents ownership and simplifies comptime (projected: 80/100)
 
-**The single highest-impact change:** Add explicit types to everything. This alone substantially reduces AI errors in any language.
+**The single highest-impact change:** Provide type signatures in your prompts, not prose documentation. This alone produces 23% more constrained output and 23 points better API conformance—empirically validated across 10 models and 5 languages.
 
 ---
 
@@ -1051,6 +1131,11 @@ Rust scores 84/100, with its main weakness being complexity (★★★☆☆). *
 | Implicit `Drop` ordering | Document or restructure | AI understands cleanup |
 | Async lifetime confusion | Owned types in async signatures | AI avoids lifetime errors |
 | Catch-all match arms | Exhaustive matching required | AI handles all variants |
+| Ad-hoc error types | Use `thiserror` for libraries | AI generates consistent errors |
+| Multiple iteration styles | Prefer iterator chains | AI uses idiomatic patterns |
+| Mixed async runtimes | Standardize on tokio | AI uses consistent async code |
+| Public enums without `#[non_exhaustive]` | Required on evolving public enums | AI designs for semver evolution |
+| Silently ignored return values | `#[must_use]` on pure functions | AI catches discarded results |
 
 **Bug Pattern Prevention (Tambon et al. [Ref 3]):**
 
@@ -1061,6 +1146,8 @@ Rust scores 84/100, with its main weakness being complexity (★★★☆☆). *
 | Explicit lifetimes | "Misinterpretations," "Wrong Attribute" |
 | Exhaustive matching | "Missing Corner Case" |
 | Explicit conversions | "Wrong Input Type" |
+| `#[non_exhaustive]` | "Missing Corner Case" (new variants break downstream) |
+| `#[must_use]` | "Missing Corner Case" (silently discarded results) |
 
 ### B.2 Grit Rules Reference
 
@@ -1194,6 +1281,108 @@ match status {
 }
 ```
 
+#### Rule 8: Standard Error Pattern (`thiserror`)
+```rust
+// ❌ BANNED in Grit (manual boilerplate)
+#[derive(Debug)]
+enum ServiceError {
+    Io(std::io::Error),
+    Parse(std::num::ParseIntError),
+}
+impl std::fmt::Display for ServiceError { /* boilerplate */ }
+impl std::error::Error for ServiceError {}
+impl From<std::io::Error> for ServiceError { /* boilerplate */ }
+
+// ✅ Grit: Use thiserror for consistent, maintainable errors
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum ServiceError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("parse error: {0}")]
+    Parse(#[from] std::num::ParseIntError),
+
+    #[error("not found: {id}")]
+    NotFound { id: String },
+}
+// thiserror auto-implements Display, Error, and From<T> for #[from] variants
+```
+
+#### Rule 9: Prefer Iterators
+```rust
+// ❌ BANNED in Grit (imperative accumulator)
+let mut results = Vec::new();
+for item in items {
+    if item.is_valid() {
+        results.push(item.name.clone());
+    }
+}
+
+// ✅ Grit: Iterator chain — declarative, composable, no mutable state
+let results: Vec<String> = items
+    .iter()
+    .filter(|item| item.is_valid())
+    .map(|item| item.name.clone())
+    .collect();
+
+// ❌ BANNED in Grit (index-based loop)
+for i in 0..items.len() {
+    process(&items[i]);
+}
+
+// ✅ Grit: Direct iteration
+for item in items {
+    process(item);
+}
+```
+
+#### Rule 10: Single Async Runtime
+```rust
+// ❌ BANNED in Grit (mixed runtimes)
+use async_std::fs;   // One runtime
+use tokio::time;     // Different runtime!
+
+// ✅ Grit: Standardize on tokio
+use tokio::fs;
+use tokio::time;
+```
+
+#### Rule 11: `#[non_exhaustive]` on Public Enums
+```rust
+// ❌ BANNED in Grit (public enum without #[non_exhaustive])
+pub enum ApiError {
+    NotFound,
+    Unauthorized,
+}
+// Adding a variant later breaks ALL downstream match arms!
+
+// ✅ Grit: Mark evolving public enums as non-exhaustive
+#[non_exhaustive]
+pub enum ApiError {
+    NotFound,
+    Unauthorized,
+}
+// Downstream code must use _ catch-all; new variants are non-breaking
+```
+
+#### Rule 12: `#[must_use]` on Pure Functions
+```rust
+// ❌ BANNED in Grit (pure function without #[must_use])
+pub fn validate(input: &str) -> bool {
+    !input.is_empty()
+}
+validate(input); // Return value silently discarded — probably a bug
+
+// ✅ Grit: Annotate pure functions
+#[must_use]
+pub fn validate(input: &str) -> bool {
+    !input.is_empty()
+}
+validate(input); // Compiler warning: unused return value that must be used
+```
+
 ### B.3 Enforcing Grit Today
 
 ```toml
@@ -1209,6 +1398,7 @@ panic = "deny"
 indexing_slicing = "deny"      # Use .get() instead
 wildcard_enum_match_arm = "deny"
 as_conversions = "warn"        # Explicit From/Into preferred
+must_use_candidate = "warn"    # Rule 12: #[must_use] on pure functions
 ```
 
 ```rust
@@ -1218,6 +1408,7 @@ as_conversions = "warn"        # Explicit From/Into preferred
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::wildcard_enum_match_arm)]
+#![warn(clippy::must_use_candidate)]
 ```
 
 ```bash
@@ -1237,7 +1428,11 @@ When writing Rust, follow Grit (strict Rust) rules:
 5. ISOLATE unsafe code in dedicated modules with safety comments
 6. USE owned types (String, Vec<T>) in async function signatures, not references
 7. MATCH all enum variants explicitly - never use _ catch-all without documenting why
-8. ANNOTATE type conversions: let x: TargetType = source.into();
+8. USE thiserror for library error types, anyhow for applications
+9. PREFER iterator chains (.iter().map().collect()) over imperative loops for transformations
+10. STANDARDIZE on tokio for async runtime - never mix runtimes
+11. ADD #[non_exhaustive] to public enums that may gain variants
+12. ADD #[must_use] to public functions that return a value with no side effects
 ```
 
 ### B.5 Grit Scorecard (Projected)
