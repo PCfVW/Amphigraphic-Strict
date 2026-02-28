@@ -26,16 +26,18 @@ manual_filter_map = "warn"          # Use .filter_map() instead
 manual_find_map = "warn"            # Use .find_map() instead
 needless_range_loop = "warn"        # Use direct iteration
 
+# Rule 12: #[must_use] on pure functions
+must_use_candidate = "warn"
+
 # Additional strictness
 pedantic = { level = "warn", priority = -1 }
-nursery = { level = "warn", priority = -1 }
+# nursery: experimental lints, can break CI on clippy updates — enable per-project if desired
+# nursery = { level = "warn", priority = -1 }
 
 # Specific pedantic lints to enforce
-missing_docs_in_private_items = "warn"
 missing_errors_doc = "warn"
 missing_panics_doc = "warn"
 
 # Allow some pedantic lints that are too noisy
 module_name_repetitions = "allow"
 too_many_lines = "allow"
-must_use_candidate = "allow"

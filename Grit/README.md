@@ -34,6 +34,8 @@ cargo clippy -- -D warnings -D clippy::pedantic
 | Ad-hoc error types | Use thiserror for libraries | AI generates consistent errors |
 | Multiple iteration styles | Prefer iterator chains | AI uses idiomatic patterns |
 | Mixed async runtimes | Standardize on tokio | AI uses consistent async code |
+| Public enums without `#[non_exhaustive]` | Required on evolving public enums | AI designs for semver evolution |
+| Silently ignored return values | `#[must_use]` on pure functions | AI catches discarded results |
 
 **Bug Pattern Prevention** (based on Tambon et al., 2025):
 
@@ -44,6 +46,8 @@ cargo clippy -- -D warnings -D clippy::pedantic
 | Explicit lifetimes | "Misinterpretations," "Wrong Attribute" |
 | Exhaustive matching | "Missing Corner Case" |
 | Explicit conversions | "Wrong Input Type" |
+| `#[non_exhaustive]` | "Missing Corner Case" (new variants break downstream) |
+| `#[must_use]` | "Missing Corner Case" (silently discarded results) |
 
 ## The Rules
 
@@ -174,6 +178,51 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 ```
+
+### Rule 11: `#[non_exhaustive]` on Public Enums
+```rust
+// BANNED in Grit (public enum without #[non_exhaustive])
+pub enum ServiceError {
+    Io(std::io::Error),
+    NotFound { id: String },
+}
+// Adding a variant later is a semver-breaking change!
+
+// Grit: Mark evolving public enums as non-exhaustive
+#[non_exhaustive]
+pub enum ServiceError {
+    Io(std::io::Error),
+    NotFound { id: String },
+}
+// Downstream code must use _ catch-all; new variants are non-breaking
+```
+
+### Rule 12: `#[must_use]` on Pure Functions
+```rust
+// BANNED in Grit (pure function without #[must_use])
+pub fn validate(input: &str) -> bool {
+    !input.is_empty()
+}
+validate(input); // Return value silently discarded — probably a bug
+
+// Grit: Annotate pure functions
+#[must_use]
+pub fn validate(input: &str) -> bool {
+    !input.is_empty()
+}
+validate(input); // Compiler warning: unused return value that must be used
+```
+
+## Annotation Patterns
+
+Grit uses mandatory comment annotations to document intent where no lint can enforce the rule automatically. Every annotation is required when the corresponding situation applies.
+
+| Annotation | When Required | Example |
+|------------|---------------|---------|
+| `// TRAIT_OBJECT: <reason>` | Every `Box<dyn Trait>` or `&dyn Trait` usage | `// TRAIT_OBJECT: heterogeneous collection` |
+| `// EXPLICIT: <reason>` | Intentional no-op match arm, or imperative loop chosen over iterator chain | `// EXPLICIT: no action needed for this variant` |
+| `// BORROW: <what>` | Explicit `.as_str()`, `.as_bytes()`, `.to_owned()` conversions | `// BORROW: explicit .as_str() instead of Deref coercion` |
+| `// SAFETY: <invariants>` | Every `unsafe` block (if unsafe isolation is `deny`, not `forbid`) | `// SAFETY: length verified >= 4` |
 
 ## Scorecard
 

@@ -158,6 +158,39 @@ fn find_by_index(items: &[Item]) {
 // use tokio::time;    // Different runtime!
 // This causes runtime panics or subtle bugs
 
+// --- MISTAKE 12: Public Enum Without #[non_exhaustive] ---
+// AI generates public enums without thinking about semver
+
+pub enum ApiError {
+    NotFound,
+    Unauthorized,
+    // Adding a new variant later breaks ALL downstream match arms!
+}
+
+// --- MISTAKE 13: Pure Function Without #[must_use] ---
+// AI omits #[must_use], allowing return values to be silently discarded
+
+pub fn validate_input(input: &str) -> bool {
+    !input.is_empty()
+}
+
+fn caller_mistake() {
+    let input = "";
+    validate_input(input); // Return value silently discarded — probably a bug!
+}
+
+// --- MISTAKE 14: Moving Borrowed State into Spawned Tasks ---
+// AI tries to use references in spawned async tasks
+
+// async fn download_files(repo: &Repo, files: Vec<String>) {
+//     let mut join_set = tokio::task::JoinSet::new();
+//     for file in files {
+//         join_set.spawn(async move {
+//             repo.get(&file).await  // ERROR: `repo` does not live long enough
+//         });
+//     }
+// }
+
 // Helper types for compilation
 struct Item {
     name: String,

@@ -19,6 +19,8 @@ When writing Rust, follow Grit (strict Rust) rules:
 8. USE thiserror for library error types, anyhow for applications
 9. PREFER iterator chains (.iter().map().collect()) over imperative loops for transformations
 10. STANDARDIZE on tokio for async runtime - never mix runtimes
+11. ADD #[non_exhaustive] to public enums that may gain variants
+12. ADD #[must_use] to public functions that return a value with no side effects
 ```
 
 ---
@@ -68,6 +70,16 @@ PATTERN MATCHING:
 - MATCH all enum variants explicitly
 - NEVER use _ catch-all without documenting why
 - USE pattern | pattern for variants with identical handling
+
+API EVOLUTION:
+- ADD #[non_exhaustive] to public enums that may gain variants
+- ADD #[non_exhaustive] to public structs constructed via builders (not by callers)
+- Adding a variant to a non_exhaustive enum is a non-breaking change
+
+RETURN VALUES:
+- ADD #[must_use] to all public functions/methods returning a value with no side effects
+- Builders, validators, and pure functions MUST be #[must_use]
+- Enforcement: clippy::must_use_candidate at warn level
 
 ITERATION:
 - PREFER iterator chains (.iter().filter().map().collect()) for transformations

@@ -308,6 +308,83 @@ async fn delayed_operation() {
     println!("Operation complete");
 }
 
+// --- FIX 12: #[non_exhaustive] on Public Enums ---
+// Grit: Public enums that may gain variants must be non_exhaustive
+
+/// Errors returned by the API.
+///
+/// Rule 11: `#[non_exhaustive]` allows adding variants in minor releases.
+#[non_exhaustive]
+pub enum ApiError {
+    NotFound,
+    Unauthorized,
+    // New variants can be added without breaking downstream code
+}
+
+// --- FIX 13: #[must_use] on Pure Functions ---
+// Grit: Pure functions annotated so discarding their result warns
+
+/// Validates that the input is non-empty.
+///
+/// Rule 12: `#[must_use]` — discarding the result is likely a bug.
+#[must_use]
+pub fn validate_input(input: &str) -> bool {
+    !input.is_empty()
+}
+
+fn caller_correct() {
+    let input = "";
+    if validate_input(input) { // Return value is used
+        println!("Valid");
+    }
+}
+
+// --- FIX 14: Arc + JoinSet for Shared State in Spawned Tasks ---
+// Grit: Wrap non-Clone shared state in Arc for spawned async tasks
+//
+// When a type does not implement Clone and must be shared across
+// spawned tasks (which require 'static futures), wrap it in Arc.
+// Use a Semaphore to limit concurrency.
+
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
+
+struct Repo; // Imagine this is not Clone (e.g., wraps a client + config)
+
+impl Repo {
+    async fn get(&self, _file: &str) -> Result<String, std::io::Error> {
+        Ok(String::new())
+    }
+}
+
+async fn download_files(repo: Repo, files: Vec<String>) -> Vec<String> {
+    let concurrency = 4;
+    let repo = Arc::new(repo);
+    let semaphore = Arc::new(Semaphore::new(concurrency));
+    let mut join_set = JoinSet::new();
+
+    for file in files {
+        let permit = Arc::clone(&semaphore)
+            .acquire_owned()
+            .await
+            .unwrap(); // OK in application code (Rule 3 is for libraries)
+
+        let task_repo = Arc::clone(&repo);
+        join_set.spawn(async move {
+            let result = task_repo.get(&file).await;
+            drop(permit);
+            (file, result)
+        });
+    }
+
+    let mut results = Vec::new();
+    while let Some(Ok((file, Ok(data)))) = join_set.join_next().await {
+        results.push(format!("{file}: {}", data.len()));
+    }
+    results
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Grit: Clear tokio runtime entry point

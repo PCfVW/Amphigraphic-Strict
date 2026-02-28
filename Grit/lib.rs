@@ -33,20 +33,22 @@
 #![warn(clippy::manual_find_map)]
 #![warn(clippy::needless_range_loop)]
 
+// Rule 12: #[must_use] on pure functions
+#![warn(clippy::must_use_candidate)]
+
 // Documentation requirements
 #![warn(missing_docs)]
-#![warn(clippy::missing_docs_in_private_items)]
 #![warn(clippy::missing_errors_doc)]
 #![warn(clippy::missing_panics_doc)]
 
 // General quality
 #![warn(clippy::pedantic)]
-#![warn(clippy::nursery)]
+// nursery: experimental lints, can break CI on clippy updates — enable per-project if desired
+// #![warn(clippy::nursery)]
 
 // === ALLOWED LINTS (too noisy) ===
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::too_many_lines)]
-#![allow(clippy::must_use_candidate)]
 
 // === YOUR CODE STARTS HERE ===
 
@@ -55,7 +57,10 @@ pub mod example {
     use std::collections::HashMap;
 
     /// Error type for user operations.
+    ///
+    /// Rule 11: `#[non_exhaustive]` allows adding variants without breaking downstream.
     #[derive(Debug)]
+    #[non_exhaustive]
     pub enum UserError {
         /// User was not found in the database.
         NotFound,
@@ -67,6 +72,14 @@ pub mod example {
     pub struct User {
         /// User's display name.
         pub name: String,
+    }
+
+    /// Checks whether a user ID is syntactically valid.
+    ///
+    /// Rule 12: `#[must_use]` — discarding the result is likely a bug.
+    #[must_use]
+    pub fn is_valid_id(id: &str) -> bool {
+        !id.is_empty()
     }
 
     /// Fetches a user by ID.
